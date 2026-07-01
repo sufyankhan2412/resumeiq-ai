@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resumeiq-backend
+    ports:
+      - '5000:5000'
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/resumeiq-ai
+      JWT_ACCESS_SECRET: change_me_access_secret
+      JWT_REFRESH_SECRET: change_me_refresh_secret
+      CLOUDINARY_CLOUD_NAME: change_me_cloud_name
+      CLOUDINARY_API_KEY: change_me_api_key
+      CLOUDINARY_API_SECRET: change_me_api_secret
+      OPENAI_API_KEY: change_me_openai_key
+      OPENAI_MODEL: gpt-4o-mini
+      FRONTEND_URL: http://localhost:3000
+      COOKIE_SECRET: change_me_cookie_secret
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - resumeiq-network
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5000/api/v1/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  mongo:
+    image: mongo:7
+    container_name: resumeiq-mongo
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: resumeiq-ai
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - resumeiq-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: resumeiq-mongo-express
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - resumeiq-network
+
+volumes:
+  mongo-data:
+
+networks:
+  resumeiq-network:
+    driver: bridge
